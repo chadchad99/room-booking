@@ -411,14 +411,14 @@
         h('i', { class: itemsOn(d).some(b => b.owner === S.me) ? 'mine' : itemsOn(d).length ? 'has' : null })))),
       wk,
       h('div', { class: 'legend' }, rooms.map(r => h('span', { class: kc(r.id) }, h('i', { class: 'dot' }), h('b', null, r.short), r.short === r.name ? null : r.name)),
-        h('span', { class: 'minekey' }, h('i', { class: 'dot' }), '파란색은 내 예약'),
+        h('span', { class: 'minekey' }, h('i', { class: 'dot' }), '짙은 남색은 내 예약'),
         h('span', { class: 'note' }, '빈칸을 누르면 예약 창이 열립니다(아래로 끌면 여러 시간)'),
         days.some(d => !loaded(d)) ? h('span', { class: 'note' }, '불러오는 중…') : null));
   }
 
   /* ----- 월 화면 ----- */
   /* 달력 칸마다 방 하나에 가로줄 하나씩(왼쪽 여는 시각 → 오른쪽 닫는 시각)을 그린다.
-     예약된 시간은 진한 회색, 빈 시간은 연한 색, 내 예약은 파랑. 줄 왼쪽(주마다 한 번)에 방 이름, 달력 위에 시각 눈금.
+     예약된 시간은 방 색, 빈 시간은 연한 색, 내 예약은 짙은 남색. 달력 위에 색 설명과 시각 눈금을 한 번만 둔다.
      내 예약은 날짜 옆에 글로도 적는다. 빈 시간을 누르면 바로 예약 창, 날짜를 누르면 오른쪽에 그날 시간표. */
   function monthView() {
     const ym = Core.ymOf(S.cursor), rooms = st().rooms, hours = Core.gridHours(st()), grid = Core.monthGrid(ym);

@@ -1,20 +1,20 @@
 /* 상담실 예약 — 흰 바탕, 가는 선, 굵기 대비. 색은 방을 구분하는 데만 쓴다. */
 :root{
   --bg:#fff; --ink:#111114; --ink2:#45454D; --mute:#8C8C96; --line:#D3D3DA; --hair:#E9E9EE;
-  --accent:#2F4BFF; --tint:#EEF1FF; --otherbg:#F1F2F5; --free:#EFF0F3; --danger:#C0392B; --now:#E5484D;
+  --accent:#23304F; --tint:#ECEFF6; --otherbg:#F1F2F5; --free:#EFF0F3; --danger:#C0392B; --now:#E5484D;
   --rh:44px; --tw:44px;
   --font:"Noto Sans KR","Pretendard","Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",system-ui,sans-serif;
 }
 /* 방 색: --c 표시(점·띠), --s 흰 글씨를 얹는 진한 바탕(내 예약), --t 연한 바탕(다른 사람), --d 연한 바탕 위 글씨 */
-/* 파랑은 '내 예약'에만 쓰려고 방 색에서는 맨 뒤로 뺐다 */
-.k0{--c:#0E9F6E;--s:#0A7F58;--t:#DDF4EC;--d:#08704D}
-.k1{--c:#F07F1B;--s:#C2570A;--t:#FDEBD9;--d:#A14C09}
-.k2{--c:#8E59F0;--s:#7B47E6;--t:#EEE6FD;--d:#6235C9}
-.k3{--c:#E0458B;--s:#C2306F;--t:#FCE4EF;--d:#A8215F}
-.k4{--c:#0B93A8;--s:#087587;--t:#DAF1F5;--d:#086778}
-.k5{--c:#9A6B3F;--s:#7E5630;--t:#F2E9DF;--d:#6F4A27}
-.k6{--c:#5B6475;--s:#5B6475;--t:#E8EAEE;--d:#3C4352}
-.k7{--c:#3B82C4;--s:#2A6CA8;--t:#E1EEF9;--d:#1F5486}
+/* 채도를 낮춘 차분한 색(세이지·클레이·머스터드·회청 …). 짙은 남색(--accent)은 '내 예약'에만 쓴다. */
+.k0{--c:#6E9C8B;--s:#4F7F6E;--t:#E7F0EC;--d:#3F6B5C}
+.k1{--c:#C4846C;--s:#A9644B;--t:#F7EAE4;--d:#8F4F38}
+.k2{--c:#C2A052;--s:#9A7B2E;--t:#F6F0DD;--d:#7A6020}
+.k3{--c:#7391B8;--s:#557499;--t:#E8EEF6;--d:#3F5E85}
+.k4{--c:#B9848F;--s:#9A6570;--t:#F5E9EC;--d:#7F4D58}
+.k5{--c:#5F8E96;--s:#47747C;--t:#E4EEF0;--d:#375E65}
+.k6{--c:#8C8478;--s:#70695E;--t:#EFEDEA;--d:#595348}
+.k7{--c:#8A7AA6;--s:#6E5E8C;--t:#EDEAF3;--d:#584A74}
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -146,7 +146,7 @@ button.chip:hover{border-color:var(--ink)}
 .tt button.c::after{content:"+";position:absolute;inset:0;display:grid;place-items:center;color:var(--accent);font-size:18px;font-weight:600;opacity:0}
 .tt button.c:hover{background:var(--tint)}
 .tt button.c:hover::after,.tt button.c:focus-visible::after{opacity:1}
-.tt .c.pick,.tt button.c.pick:hover{background:#D9E0FF}
+.tt .c.pick,.tt button.c.pick:hover{background:#D5DBE9}
 .tt .c.pick::after{opacity:0!important}
 .tt .c.past{background:repeating-linear-gradient(135deg,transparent 0 5px,#F1F1F4 5px 6px)}
 .tt .c.closed,.tt .c.far{background:repeating-linear-gradient(135deg,transparent 0 5px,#E9E9EE 5px 6px)}
@@ -188,7 +188,7 @@ button.chip:hover{border-color:var(--ink)}
 .legend .minekey{color:var(--accent);font-weight:800}
 .legend .minekey .dot{background:var(--accent)}
 .col{border-left:1px solid var(--line);min-width:0}
-.col.today{background:#F7F8FF}
+.col.today{background:#F6F7FA}
 .col .tt .c{border-left-color:#F1F1F5}
 .col .tt .c.first{border-left:0}
 .col .ev{margin:1px;padding:3px 2px 3px 3px;border-left:0;border-top:3px solid var(--c)}
@@ -227,7 +227,7 @@ button.chip:hover{border-color:var(--ink)}
 .day.past .num{color:var(--mute)}
 .day.past.sun .num,.day.out.sun .num{color:#E7C4BF}
 .day.past .strips{opacity:.4}
-.day.today,.day.today:hover{background:#F0F3FF}
+.day.today,.day.today:hover{background:#F1F3F8}
 .day.today .num{color:var(--accent);font-weight:800}
 .day.today .num::after{content:"오늘";font-size:12px;font-weight:700;margin-left:6px}
 .day.sel{box-shadow:inset 0 0 0 2px var(--ink)}
