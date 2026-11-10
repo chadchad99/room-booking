@@ -134,6 +134,7 @@
 
   /* 접속 정보로 설정을 읽고 예약 화면으로 들어간다 */
   async function enter(payload) {
+    S.payload = payload;
     Data.store = new GitHubStore(payload);
     await Data.loadSettings();
     if (!Data.hasSettings) {
@@ -554,7 +555,7 @@
           h('div', { class: 'rowline' }, h('label', null, '용도', h('input', { type: 'text', value: purposes, style: { width: '300px' }, oninput: e => { purposes = e.target.value; } }))),
           h('p', { class: 'hint' }, '용도는 쉼표로 나눠 적습니다.')),
         h('p', { class: 'msg', role: 'alert' }, note),
-        h('div', { class: 'actions' }, h('a', { class: 'link left', href: 'setup.html' }, '비밀번호·접속 열쇠 바꾸기'), btn('닫기', closeDialog), btn(saving ? '저장하는 중…' : '저장', save, 'primary', { disabled: saving })));
+        h('div', { class: 'actions' }, btn('공용 비밀번호 바꾸기', showPassword, 'left'), btn('닫기', closeDialog), btn(saving ? '저장하는 중…' : '저장', save, 'primary', { disabled: saving })));
       note = '';
     }
     async function save() {
@@ -577,6 +578,51 @@
     }
     dialog('설정', body, true);
     draw();
+  }
+
+  /* ---------- 공용 비밀번호 바꾸기 (관리자) ----------
+     지금 쓰는 접속 정보를 새 비밀번호로 다시 잠근 lock.json 내용을 만든다. 저장소의 lock.json을 바꾸는 일은 관리자가 깃허브에서 한다. */
+  function showPassword() {
+    const host = /^([\w-]+)\.github\.io$/.exec(location.hostname), first = location.pathname.split('/').filter(Boolean)[0] || '';
+    const siteRepo = host && first && !/\.html$/.test(first) ? host[1] + '/' + first : '';
+    const field = more => h('input', Object.assign({ type: 'password', autocomplete: 'new-password', autocapitalize: 'off', spellcheck: 'false' }, more));
+    const p1 = field({ 'aria-label': '새 비밀번호' }), p2 = field({ 'aria-label': '새 비밀번호 한 번 더', placeholder: '한 번 더' });
+    const msg = h('p', { class: 'msg', role: 'alert' });
+    const out = h('textarea', { class: 'mono', readonly: true, rows: 5, spellcheck: 'false', 'aria-label': '새 잠금 파일 내용' });
+    const copy = btn('복사', async () => {
+      try { await navigator.clipboard.writeText(out.value); }
+      catch (e) { out.focus(); out.select(); try { document.execCommand('copy'); } catch (e2) { /* 직접 복사 */ } }
+      copy.textContent = '복사했습니다'; setTimeout(() => { copy.textContent = '복사'; }, 2000);
+    }, 'primary');
+    const result = h('div', { class: 'sec', hidden: true }, h('h4', null, '새 잠금 파일'),
+      h('p', { class: 'hint' }, '아래 글자를 복사한 뒤, 깃허브의 lock.json을 열어 안의 내용을 모두 지우고 붙여 넣고 Commit changes를 누르세요. 1~2분 뒤부터는 새 비밀번호로만 들어올 수 있고, 모든 기기에서 다시 로그인해야 합니다.'),
+      out,
+      h('div', { class: 'actions' }, copy,
+        siteRepo ? h('a', { class: 'btn', target: '_blank', rel: 'noopener', href: 'https://github.com/' + siteRepo + '/edit/main/lock.json' }, '깃허브에서 lock.json 열기') : null));
+    const go = btn('새 잠금 파일 만들기', make, 'primary');
+    async function make() {
+      msg.className = 'msg';
+      const weak = Lock.weakness(p1.value);
+      if (weak) { msg.textContent = '비밀번호: ' + weak; return; }
+      if (Lock.clean(p1.value) !== Lock.clean(p2.value)) { msg.textContent = '비밀번호 두 칸이 서로 다릅니다.'; return; }
+      if (!S.payload) { msg.textContent = '다시 로그인한 뒤 해 주세요.'; return; }
+      go.disabled = true; msg.className = 'msg info'; msg.textContent = '만드는 중…';
+      try {
+        const text = JSON.stringify(await Lock.create(p1.value, S.payload));
+        await Lock.open(p1.value, JSON.parse(text));          // 다시 열리는지 확인
+        out.value = text; result.hidden = false; msg.textContent = '';
+      } catch (e) { msg.className = 'msg'; msg.textContent = '만들지 못했습니다. 다시 해 주세요.'; console.error(e); }
+      finally { go.disabled = false; }
+    }
+    dialog('공용 비밀번호 바꾸기', h('form', { class: 'form', novalidate: true, onsubmit: e => { e.preventDefault(); make(); } },
+      h('div', { class: 'field' }, h('span', { class: 'lab' }, '새 비밀번호', h('small', null, '10자 이상, 영문과 숫자를 섞어서')),
+        h('div', { class: 'row' }, p1,
+          h('label', { class: 'hint' }, h('input', { type: 'checkbox', onchange: e => { p1.type = p2.type = e.target.checked ? 'text' : 'password'; } }), ' 글자 보기')),
+        p2),
+      msg,
+      h('div', { class: 'actions' }, btn('닫기', closeDialog), go),
+      result,
+      h('p', { class: 'hint' }, '예전 비밀번호를 아는 사람을 완전히 막으려면 접속 열쇠도 새로 만들어야 합니다. ', h('a', { href: 'setup.html' }, '설정 페이지'), '에서 할 수 있습니다.')));
   }
 
   /* ---------- 이름 메뉴 ---------- */

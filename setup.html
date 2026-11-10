@@ -7,7 +7,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://api.github.com; base-uri 'none'; form-action 'none'">
 <title>상담실 예약 · 관리자 설정</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=1">
+<link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
 <section class="gate setup">
@@ -54,7 +54,7 @@
       <ol>
         <li>아래 글자를 <b>복사</b>합니다.</li>
         <li>예약 페이지 저장소의 <b>lock.json</b> 파일을 열어, 안의 내용을 모두 지우고 붙여 넣은 뒤 <b>Commit changes</b>를 누릅니다.</li>
-        <li>1~2분 뒤 예약 페이지에서 새 비밀번호로 들어갑니다. 비밀번호는 직원들에게 따로 알려 주세요. (이 페이지는 비밀번호를 저장하지 않습니다)</li>
+        <li>1~2분 뒤 예약 페이지에서 새 비밀번호로 들어갑니다. 비밀번호는 직원들에게 따로 알려 주세요. 아직 적어 두지 않았다면 위 3번 칸의 '글자 보기'를 눌러 확인하세요. (이 페이지를 닫으면 다시 볼 수 없습니다)</li>
       </ol>
       <textarea id="out" readonly rows="6" spellcheck="false"></textarea>
       <div class="actions">
@@ -66,9 +66,9 @@
   </div>
 </section>
 
-<script src="core.js?v=1"></script>
-<script src="crypto.js?v=1"></script>
-<script src="store.js?v=1"></script>
-<script src="setup.js?v=1"></script>
+<script src="core.js?v=2"></script>
+<script src="crypto.js?v=2"></script>
+<script src="store.js?v=2"></script>
+<script src="setup.js?v=2"></script>
 </body>
 </html>

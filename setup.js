@@ -63,7 +63,7 @@
       await Lock.open(pw, JSON.parse(text));      // 다시 열리는지 확인
       $('#out').value = text;
       $('#result').hidden = false;
-      $('#token').value = ''; $('#pw1').value = ''; $('#pw2').value = '';
+      $('#token').value = '';      // 열쇠는 지우고, 비밀번호는 적어 둘 수 있게 칸에 남겨 둔다
       say('');
       if (siteRepo) {
         let exists = false;
