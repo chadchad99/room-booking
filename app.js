@@ -1,11 +1,11 @@
 /* 상담실 예약 — 화면
-   주: 한 주 세로 시간표 + 왼쪽 작은 달력·지금 빈 방·내 예약
-   월: 달력 칸에 누가 언제 쓰는지 글로 + 오른쪽 그날 시간표 */
+   월(첫 화면): 달력 칸마다 방별 가로줄(예약된 시간을 방 색으로) + 오른쪽 그날 시간표
+   주: 한 주 세로 시간표 + 왼쪽 작은 달력·지금 방 상황·내 예약 */
 'use strict';
 (() => {
   const $ = (s, r) => (r || document).querySelector(s);
   const DOW = '일월화수목금토';
-  const KEY = { me: 'rb.me', session: 'rb.session', view: 'rb.view2' };
+  const KEY = { me: 'rb.me', session: 'rb.session', view: 'rb.view' };
   const KEEP_DAYS = 90, POLL_MS = 60000, SETTINGS_MS = 300000;
 
   /* DOM 만들기: h('div', { class: 'x', onclick: fn }, 자식…). 글자는 늘 글자로만 들어가므로 안전하다. */
@@ -253,7 +253,7 @@
     go(d);
   }
   function step(dir) { if (S.view === 'week') go(Core.addDays(S.cursor, 7 * dir)); else stepMonth(dir); }
-  function setView(v) { S.view = v; keep.set(KEY.view, v); go(S.cursor); }
+  function setView(v) { S.view = v; if (SS) keep.set(KEY.view, v, SS); go(S.cursor); }   // 같은 창에서 새로 고칠 때만 기억한다
   function addNew() { bookForm({ date: S.cursor < S.now.date ? S.now.date : S.cursor }); }
 
   function signature() {
@@ -805,7 +805,7 @@
   /* ---------- 시작 ---------- */
   async function boot() {
     S.now = Core.nowKST(); S.cursor = S.now.date;
-    S.view = keep.get(KEY.view) === 'month' ? 'month' : 'week';
+    S.view = SS && keep.get(KEY.view, SS) === 'week' ? 'week' : 'month';      // 처음 열면 늘 월 화면
     if (!(window.crypto && crypto.subtle)) return showLock('이 브라우저에서는 열 수 없습니다. 크롬·엣지·사파리 최신판으로 열어 주세요.', 'fatal');
     try {
       const r = await fetch('lock.json', { cache: 'no-store' });
