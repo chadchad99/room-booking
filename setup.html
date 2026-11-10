@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://api.github.com; base-uri 'none'; form-action 'none'">
+<title>상담실 예약 · 관리자 설정</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+<section class="gate setup">
+  <div class="gate-box wide">
+    <p class="eyebrow">관리자용</p>
+    <h1>잠금 파일 <span>만들기</span></h1>
+    <p class="lead">공용 비밀번호를 처음 정하거나 바꿀 때, 접속 열쇠를 새로 만들었을 때 쓰는 페이지입니다. 여기에 적는 내용은 이 브라우저 안에서만 쓰이고, 깃허브(api.github.com) 말고는 어디로도 보내지 않습니다.</p>
+
+    <form id="f" class="form" novalidate>
+      <div class="field">
+        <label class="lab" for="repo">1. 자료 저장소 <small>계정이름/저장소이름</small></label>
+        <input id="repo" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="예: myname/room-booking-data">
+      </div>
+      <div class="field">
+        <label class="lab" for="token">2. 접속 열쇠 <small>깃허브에서 만든, github_pat_ 로 시작하는 긴 글자</small></label>
+        <input id="token" type="password" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <details class="how">
+          <summary>접속 열쇠 만드는 법</summary>
+          <ol>
+            <li>깃허브에 로그인한 뒤 <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">새 열쇠 만들기 화면</a>을 엽니다. (Settings → Developer settings → Personal access tokens → Fine-grained tokens)</li>
+            <li>Token name에 알아볼 이름(예: room-booking)을 적고, Expiration은 No expiration 또는 원하는 기간을 고릅니다.</li>
+            <li>Repository access에서 Only select repositories를 고르고 <b>자료 저장소 하나만</b> 선택합니다.</li>
+            <li>Permissions → Repository permissions → <b>Contents</b>를 <b>Read and write</b>로 바꿉니다.</li>
+            <li>Generate token을 누르고, 나온 글자를 복사해 위 칸에 붙여 넣습니다. (이 글자는 그 화면에서 한 번만 보입니다)</li>
+          </ol>
+        </details>
+      </div>
+      <div class="field">
+        <label class="lab" for="pw1">3. 공용 비밀번호 <small>10자 이상, 영문과 숫자를 섞어서</small></label>
+        <div class="row">
+          <input id="pw1" type="password" autocomplete="new-password" autocapitalize="off" spellcheck="false">
+          <button id="suggest" class="btn" type="button">추천 받기</button>
+          <label class="hint"><input id="show" type="checkbox"> 글자 보기</label>
+        </div>
+        <input id="pw2" type="password" autocomplete="new-password" autocapitalize="off" spellcheck="false" placeholder="한 번 더">
+        <p class="hint">전화번호·기관 이름처럼 짐작하기 쉬운 것은 피해 주세요. 직원 모두 이 비밀번호 하나로 들어옵니다.</p>
+      </div>
+      <button id="make" class="btn primary wide" type="submit">확인하고 잠금 파일 만들기</button>
+      <p id="msg" class="msg" role="alert"></p>
+    </form>
+
+    <div id="result" class="result" hidden>
+      <h2>잠금 파일이 만들어졌습니다</h2>
+      <ol>
+        <li>아래 글자를 <b>복사</b>합니다.</li>
+        <li>예약 페이지 저장소의 <b>lock.json</b> 파일을 열어, 안의 내용을 모두 지우고 붙여 넣은 뒤 <b>Commit changes</b>를 누릅니다.</li>
+        <li>1~2분 뒤 예약 페이지에서 새 비밀번호로 들어갑니다. 비밀번호는 직원들에게 따로 알려 주세요. (이 페이지는 비밀번호를 저장하지 않습니다)</li>
+      </ol>
+      <textarea id="out" readonly rows="6" spellcheck="false"></textarea>
+      <div class="actions">
+        <button id="copy" class="btn primary" type="button">복사</button>
+        <a id="gh" class="btn" target="_blank" rel="noopener" hidden>깃허브에서 lock.json 열기</a>
+        <a class="btn" href="./">예약 페이지로</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="core.js?v=1"></script>
+<script src="crypto.js?v=1"></script>
+<script src="store.js?v=1"></script>
+<script src="setup.js?v=1"></script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://api.github.com; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="theme-color" content="#ffffff">
+<title>상담실 예약</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+
+<!-- 첫 화면: 비밀번호 -->
+<section id="lock" class="gate" hidden>
+  <div class="gate-box">
+    <p class="eyebrow">직원 전용</p>
+    <h1>상담실 <span>예약</span></h1>
+    <form id="lockForm" novalidate>
+      <label class="lab" for="pw">비밀번호</label>
+      <input id="pw" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <label class="check"><input id="keep" type="checkbox" checked> 이 기기에서 로그인 유지</label>
+      <button id="enter" class="btn primary wide" type="submit">들어가기</button>
+      <p id="lockMsg" class="msg" role="alert"></p>
+    </form>
+    <p id="lockFine" class="fine">여럿이 쓰는 컴퓨터에서는 '로그인 유지'를 끄고, 다 쓴 뒤 오른쪽 위 이름을 눌러 '잠그기'를 해 주세요.</p>
+  </div>
+</section>
+
+<!-- 처음 한 번: 이름 고르기 -->
+<section id="pick" class="gate" hidden>
+  <div class="gate-box wide">
+    <p class="eyebrow">이 기기에서 처음 한 번만</p>
+    <h1>이름을 <span>골라 주세요</span></h1>
+    <div id="names" class="names"></div>
+    <p id="pickFine" class="fine">고른 이름으로 예약됩니다. 나중에 오른쪽 위 이름을 눌러 바꿀 수 있습니다.</p>
+  </div>
+</section>
+
+<!-- 예약 화면 -->
+<div id="app" hidden>
+  <header class="top">
+    <div class="brand">상담실 예약</div>
+    <div class="period" id="period"><span class="y"></span><span class="m"></span></div>
+    <div class="nav">
+      <button id="prev" class="arrow" type="button" aria-label="이전">‹</button>
+      <button id="next" class="arrow" type="button" aria-label="다음">›</button>
+      <button id="today" class="today" type="button">오늘</button>
+    </div>
+    <div class="right">
+      <div class="views">
+        <button id="vMonth" type="button">월</button>
+        <button id="vWeek" type="button">주</button>
+      </div>
+      <button id="mine" class="link" type="button">내 예약</button>
+      <button id="who" class="me" type="button" aria-haspopup="true"></button>
+    </div>
+  </header>
+  <main id="main"></main>
+</div>
+
+<div id="menu" class="menu" hidden></div>
+<div id="bar" class="bar" hidden></div>
+<div id="dlg" class="dlg-back" hidden><div class="dlg" role="dialog" aria-modal="true"></div></div>
+<div id="toast" class="toast" role="status" hidden></div>
+<noscript><p class="gate">이 페이지는 자바스크립트를 켜야 쓸 수 있습니다.</p></noscript>
+
+<script src="core.js?v=1"></script>
+<script src="crypto.js?v=1"></script>
+<script src="store.js?v=1"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>
