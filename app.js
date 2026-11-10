@@ -5,7 +5,7 @@
 (() => {
   const $ = (s, r) => (r || document).querySelector(s);
   const DOW = '일월화수목금토';
-  const KEY = { me: 'rb.me', session: 'rb.session', view: 'rb.view' };
+  const KEY = { me: 'rb.me', session: 'rb.session', view: 'rb.view', find: 'rb.find' };
   const KEEP_DAYS = 90, POLL_MS = 60000, SETTINGS_MS = 300000;
 
   /* DOM 만들기: h('div', { class: 'x', onclick: fn }, 자식…). 글자는 늘 글자로만 들어가므로 안전하다. */
@@ -36,7 +36,8 @@
   };
 
   const S = { lock: null, payload: null, me: '', view: 'week', cursor: '', now: Core.nowKST(), months: new Map(),
-              busy: 0, timer: 0, lastLoad: 0, lastSettings: 0, sig: '', drag: false, skipClick: false };
+              busy: 0, timer: 0, lastLoad: 0, lastSettings: 0, sig: '', drag: false, skipClick: false,
+              find: { start: null, len: 1 } };      // 빈 방 찾기: 쓰려는 시작 시각(없으면 꺼짐)과 길이
   const st = () => Data.settings;
 
   /* ---------- 작은 도우미 ---------- */
@@ -343,8 +344,9 @@
       rooms.forEach((r, j) => {
         const state = Core.slotStatus(st(), d, hr, r.id, S.now);
         const free = state === 'ok' && ready && !list.some(x => x.room === r.id && x.start <= hr && hr < x.end);
+        const want = withHead && S.find.start != null && hr >= S.find.start && hr < S.find.start + S.find.len;   // 빈 방 찾기에서 고른 시간
         g.append(h(free ? 'button' : 'div', {
-          class: 'c ' + state + (j === 0 ? ' first' : '') + (free ? ' free' : ''), type: free ? 'button' : null,
+          class: 'c ' + state + (j === 0 ? ' first' : '') + (free ? ' free' : '') + (want ? ' want' : ''), type: free ? 'button' : null,
           style: { gridRow: i + r0, gridColumn: j + c0 }, 'data-room': r.id, 'data-hour': hr,
           'aria-label': free ? md(d) + ' ' + hr + '시 ' + r.name + ' 예약하기' : null,
           title: state === 'far' ? r.name + Core.josa(r.name, '은 ', '는 ') + Core.limitText(st()) : null }));
@@ -425,14 +427,52 @@
     const open = hours[0], close = hours[hours.length - 1] + 1, marks = [];
     for (let hr = open; hr <= close; hr += 3) marks.push(hr);
     const sun = st().hours.sunday > 0, cols = (sun ? 'minmax(0,1fr)' : 'minmax(0,var(--sunw))') + ' repeat(6,minmax(0,1fr))';
-    return h('section', { class: 'cal', style: { '--n': hours.length, '--rooms': rooms.length, '--rows': grid.length } }, strip(),
-      h('div', { class: 'key' },
-        h('span', { class: 'kt' }, '예약된 시간'), rooms.map(r => h('span', { class: kc(r.id) }, h('i', { class: 'kb' }), r.name)),
-        h('span', null, h('i', { class: 'km' }), '내 예약'), h('span', null, h('i', { class: 'kf' }), '빈 시간'),
-        h('span', { class: 'note' }, '줄의 빈 곳을 누르면 그 시간으로 예약')),
+    const finding = S.find.start != null;
+    return h('section', { class: 'cal' + (finding ? ' finding' : ''), style: { '--n': hours.length, '--rooms': rooms.length, '--rows': grid.length } }, strip(),
+      h('div', { class: 'tools' }, findBar(hours),
+        finding ? h('div', { class: 'key fkey' }, rooms.map(r => h('span', { class: kc(r.id) }, h('i', { class: 'kb' }), r.name)))   // 좁은 화면에서만 보인다 (칸에 색 점만 나오므로)
+          : h('div', { class: 'key', title: '줄 하나가 방 하나입니다. 줄의 빈 곳을 누르면 그 시간으로 예약 창이 열립니다.' },
+            rooms.map(r => h('span', { class: kc(r.id) }, h('i', { class: 'kb' }), r.name)),
+            h('span', null, h('i', { class: 'km' }), '내 예약'), h('span', null, h('i', { class: 'kf' }), '빈 시간'))),
       h('div', { class: 'dow', style: { gridTemplateColumns: cols } }, [...DOW].map((x, i) => h('span', { class: i === 0 ? 'sun' : null }, x,
-        i > 0 || sun ? h('span', { class: 'ax' }, marks.map(hr => h('i', null, hr))) : null))),
+        !finding && (i > 0 || sun) ? h('span', { class: 'ax' }, marks.map(hr => h('i', null, hr))) : null))),
       h('div', { class: 'weeks' }, grid.map(row => h('div', { class: 'week', style: { gridTemplateColumns: cols } }, row.map(d => dayCell(d, ym, rooms, hours))))));
+  }
+  /* ----- 빈 방 찾기: 쓰려는 시작 시각과 길이를 고르면 달력 칸이 '그 시간 내내 비어 있는 방'으로 바뀐다 ----- */
+  function findBar(hours) {
+    const f = S.find, open = hours[0], close = hours[hours.length - 1] + 1;
+    if (f.start != null && (f.start < open || f.start >= close)) f.start = null;      // 운영 시간이 바뀌었을 때
+    const on = f.start != null;
+    if (on && f.start + f.len > close) f.len = close - f.start;
+    const lens = [1, 2, 3, 4].filter(n => !on || f.start + n <= close);
+    const set = () => { if (SS) keep.set(KEY.find, JSON.stringify(f), SS); render(true); };   // 같은 창에서 새로 고칠 때만 기억한다
+    return h('div', { class: 'find' + (on ? ' on' : '') },
+      h('b', null, '빈 방 찾기'),
+      h('select', { 'aria-label': '쓰려는 시작 시각', title: '쓰려는 시각을 고르면 날짜마다 그 시간에 빈 방을 보여 줍니다', value: on ? f.start : '', onchange: e => { f.start = e.target.value === '' ? null : +e.target.value; set(); } },
+        h('option', { value: '' }, '시작 시각 고르기'), hours.map(hr => h('option', { value: hr }, hr + '시부터'))),
+      h('select', { 'aria-label': '쓰는 시간', value: f.len, disabled: !on, onchange: e => { f.len = +e.target.value; set(); } }, lens.map(n => h('option', { value: n }, n + '시간'))),
+      on ? [h('span', { class: 'res' }, h('b', null, f.start + '~' + (f.start + f.len) + '시'), '에 비어 있는 방입니다. ',
+              h('span', { class: 'pc' }, '방 이름을 누르면 예약 창이 열립니다.'), h('span', { class: 'ph' }, '날짜를 누르면 아래에서 방을 골라 예약할 수 있습니다.')),
+            h('button', { type: 'button', class: 'off', onclick: () => { f.start = null; set(); } }, '찾기 끝내기')] : null);
+  }
+  /* 찾는 시간 내내 비어 있고 지금 예약할 수 있는 방. 그 시간이 운영 시간 밖이면 null */
+  function freeRooms(d) {
+    const f = S.find, open = Core.dayHours(st(), d), list = itemsOn(d);
+    if (!open.length || f.start < open[0] || f.start + f.len > open[open.length - 1] + 1) return null;
+    return st().rooms.filter(r => {
+      for (let hr = f.start; hr < f.start + f.len; hr++)
+        if (Core.slotStatus(st(), d, hr, r.id, S.now) !== 'ok' || list.some(x => x.room === r.id && x.start <= hr && hr < x.end)) return false;
+      return true;
+    });
+  }
+  function findCell(d) {
+    if (d < S.now.date) return null;
+    if (!loaded(d)) return h('span', { class: 'fnone' }, '불러오는 중…');
+    const rooms = freeRooms(d);
+    if (rooms === null) return h('span', { class: 'fnone' }, '운영 시간 아님');
+    if (!rooms.length) return h('span', { class: 'fnone' }, d === S.now.date && S.find.start < S.now.hour ? '지난 시간' : '빈 방 없음');
+    return h('span', { class: 'frooms' }, rooms.map(r => h('span', { class: 'froom ' + kc(r.id), 'data-room': r.id,
+      title: r.name + ' · 누르면 ' + S.find.start + '~' + (S.find.start + S.find.len) + '시로 예약' }, h('i', { class: 'dot' }), r.short)));
   }
   function dayCell(d, ym, rooms, hours) {
     const out = Core.ymOf(d) !== ym, openDay = Core.dayHours(st(), d), list = out ? [] : itemsOn(d), mine = Core.groups(list.filter(b => b.owner === S.me));
@@ -441,7 +481,10 @@
     const chip = !mine.length ? null : h('span', { class: 'mychip', title: '내 예약: ' + mine.map(g => span(g) + ' ' + roomName(g.room)).join(', ') },
       (mine[0].end - mine[0].start > 1 ? mine[0].start + '~' + mine[0].end + '시' : mine[0].start + '시') + ' ' + short(mine[0].room) + (mine.length > 1 ? ' 외 ' + (mine.length - 1) : ''));
     const pick = e => {                       // 줄의 빈 곳을 눌렀으면 그 방·시간으로 예약 창, 아니면 그날을 고른다
-      const t = window.innerWidth >= 900 && e.target.closest ? e.target.closest('.track') : null;   // 휴대전화에서는 줄이 작아 날짜만 고른다
+      const wide = window.innerWidth >= 900 && e.target.closest;                                      // 휴대전화에서는 칸이 작아 날짜만 고른다
+      const fr = wide ? e.target.closest('.froom') : null;                                          // 빈 방 찾기 결과의 방 이름
+      if (fr && S.find.start != null) { S.cursor = d; render(true); return bookForm({ date: d, room: fr.dataset.room, start: S.find.start, end: S.find.start + S.find.len }); }
+      const t = wide ? e.target.closest('.track') : null;
       if (t && !e.target.closest('i.b, i.m, i.x') && loaded(d)) {
         const box = t.getBoundingClientRect(), hr = hours[Math.max(0, Math.min(hours.length - 1, Math.floor((e.clientX - box.left) / box.width * hours.length)))];
         const room = t.dataset.room, taken = list.some(x => x.room === room && x.start <= hr && hr < x.end);
@@ -453,7 +496,7 @@
         'aria-label': md(d) + ' ' + dow(d) + '요일' + (!out && !openDay.length ? ', 쉬는 날' : '') + (list.length ? ', 예약 ' + Core.groups(list).length + '건' : '') + (mine.length ? ', 내 예약 ' + mine.length + '건' : ''),
         title: !out && !openDay.length ? '쉬는 날' : null, 'aria-pressed': d === S.cursor ? 'true' : 'false' },
       h('span', { class: 'dhead' }, h('span', { class: 'num' }, +d.slice(8)), chip),
-      out || !openDay.length ? null : dayStrips(d, list, rooms, hours, openDay));
+      out || !openDay.length ? null : S.find.start != null ? findCell(d) : dayStrips(d, list, rooms, hours, openDay));
   }
   /* 방마다 이어진 한 줄을 깔고, 예약된 구간만 그 위에 색으로 얹는다 (칸을 잘게 쪼개지 않아 줄이 고르게 보인다) */
   function dayStrips(d, list, rooms, hours, openDay) {
@@ -472,9 +515,13 @@
     const limited = st().rooms.filter(r => r.limited).map(r => r.name);
     const sum = !open.length ? '쉬는 날입니다.' : !loaded(d) ? '불러오는 중…'
       : !gs.length ? '아직 예약이 없습니다.' : ['예약 ' + gs.length + '건', mine ? [' · ', h('b', null, '내 예약 ' + mine + '건')] : null];
+    const f = S.find, want = f.start != null && open.length && d >= S.now.date && loaded(d) ? freeRooms(d) : undefined;
     return h('aside', { class: 'side', style: { '--n': Core.gridHours(st()).length } },
       h('h2', null, md(d), h('span', null, dow(d) + '요일')),
       h('p', { class: 'sum' }, sum),
+      want === undefined ? null : h('div', { class: 'fpanel' }, h('b', null, f.start + '~' + (f.start + f.len) + '시에 빈 방'),
+        want === null ? h('span', { class: 'hint' }, '이 시간은 운영 시간이 아닙니다.') : !want.length ? h('span', { class: 'hint' }, '이 시간에 빈 방이 없습니다.')
+          : h('div', { class: 'seg' }, want.map(r => h('button', { type: 'button', onclick: () => bookForm({ date: d, room: r.id, start: f.start, end: f.start + f.len }) }, h('i', { class: 'dot ' + kc(r.id) }), r.name)))),
       open.length ? dayGrid(d, true) : null,
       h('p', { class: 'note' }, open.length ? '빈칸을 누르거나 아래로 끌어서 예약합니다. ' : null,
         limited.length ? joinNames(limited) + Core.josa(limited[limited.length - 1], '은 ', '는 ') + Core.limitText(st()) : null,
@@ -806,6 +853,7 @@
   async function boot() {
     S.now = Core.nowKST(); S.cursor = S.now.date;
     S.view = SS && keep.get(KEY.view, SS) === 'week' ? 'week' : 'month';      // 처음 열면 늘 월 화면
+    try { const f = JSON.parse(SS && keep.get(KEY.find, SS)); if (f && Number.isInteger(f.start) && [1, 2, 3, 4].indexOf(f.len) >= 0) S.find = { start: f.start, len: f.len }; } catch (e) { /* 없음 */ }
     if (!(window.crypto && crypto.subtle)) return showLock('이 브라우저에서는 열 수 없습니다. 크롬·엣지·사파리 최신판으로 열어 주세요.', 'fatal');
     try {
       const r = await fetch('lock.json', { cache: 'no-store' });
