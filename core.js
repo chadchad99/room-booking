@@ -18,7 +18,8 @@ const Core = (() => {
     staff: []                                                          // { name, admin }
   };
 
-  const int = (v, lo, hi, d) => { v = Math.round(Number(v)); return Number.isFinite(v) && v >= lo && v <= hi ? v : d; };
+  const COLORS = 8;   // 방에 줄 수 있는 색 수 (style.css의 .k0 ~ .k7)
+  const int = (v, lo, hi, d) => { if (v == null || v === '') return d; v = Math.round(Number(v)); return Number.isFinite(v) && v >= lo && v <= hi ? v : d; };
   const str = (v, max) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, max);
 
   /* 저장된 설정을 믿고 쓸 수 있는 모양으로 다듬는다 */
@@ -27,10 +28,22 @@ const Core = (() => {
     const out = { v: 1 };
     const seen = new Set();
     out.rooms = (Array.isArray(raw.rooms) ? raw.rooms : DEFAULTS.rooms).map(r => ({
-      id: str(r && r.id, 12), name: str(r && r.name, 20), short: str(r && r.short, 2), limited: !!(r && r.limited)
+      id: str(r && r.id, 12), name: str(r && r.name, 20), short: str(r && r.short, 3), limited: !!(r && r.limited), color: int(r && r.color, 0, COLORS - 1, -1)
     })).filter(r => r.id && r.name && !seen.has(r.id) && seen.add(r.id));
-    if (!out.rooms.length) out.rooms = DEFAULTS.rooms.map(r => Object.assign({}, r));
-    out.rooms.forEach(r => { if (!r.short) r.short = r.name.replace(/\s/g, '').slice(-1); });
+    if (!out.rooms.length) out.rooms = DEFAULTS.rooms.map(r => Object.assign({ color: -1 }, r));
+    // 줄임 이름: 숫자만 있으면 '1실'처럼, '집'은 '집단'으로 (글자만 봐도 방인 줄 알게)
+    out.rooms.forEach(r => {
+      if (!r.short) r.short = r.name.replace(/\s/g, '').slice(-1);
+      if (/^\d{1,2}$/.test(r.short)) r.short += '실';
+      else if (r.short === '집') r.short = '집단';
+    });
+    // 방 색: 정해 둔 색이 없으면 아직 안 쓴 색을 차례로 준다
+    out.rooms.forEach(r => {
+      if (r.color >= 0) return;
+      const used = out.rooms.map(x => x.color);
+      let c = 0; while (c < COLORS - 1 && used.indexOf(c) >= 0) c++;
+      r.color = c;
+    });
     out.purposes = (Array.isArray(raw.purposes) ? raw.purposes : DEFAULTS.purposes).map(p => str(p, 12)).filter(Boolean);
     out.purposes = out.purposes.filter((p, i) => out.purposes.indexOf(p) === i);
     if (!out.purposes.length) out.purposes = DEFAULTS.purposes.slice();
@@ -140,12 +153,30 @@ const Core = (() => {
 
   const byTime = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.start - b.start || (a.room < b.room ? -1 : a.room > b.room ? 1 : 0));
 
+  /* 같은 사람이 같은 방을 같은 용도로 이어서 쓰는 예약을 한 덩어리로 묶는다.
+     화면에 보이는 한 칸이자 취소·변경의 단위다. → [{ date, room, owner, purpose, start, end, items:[원래 예약…] }] */
+  function groups(items) {
+    const out = [];
+    items.slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.room < b.room ? -1 : a.room > b.room ? 1 : a.start - b.start)).forEach(b => {
+      const g = out[out.length - 1];
+      if (g && g.date === b.date && g.room === b.room && g.owner === b.owner && g.purpose === b.purpose && g.end === b.start) { g.end = b.end; g.items.push(b); }
+      else out.push({ date: b.date, room: b.room, owner: b.owner, purpose: b.purpose, start: b.start, end: b.end, items: [b] });
+    });
+    return out.sort(byTime);
+  }
+  /* 시(정수) 목록을 이어진 구간으로: [13,14,16] → [[13,15],[16,17]] */
+  function runs(hours) {
+    const out = [];
+    hours.slice().sort((a, b) => a - b).forEach(h => { const r = out[out.length - 1]; if (r && r[1] === h) r[1] = h + 1; else out.push([h, h + 1]); });
+    return out;
+  }
+
   function newId() {
     const a = new Uint8Array(8); crypto.getRandomValues(a);
     return Array.from(a, x => x.toString(16).padStart(2, '0')).join('');
   }
 
   return { DEFAULTS, normalize, pad, parseDate, nowKST, addDays, weekday, ymOf, addMonths, monthsLater, monthGrid, weekDates,
-           closeHour, dayHours, gridHours, roomById, lastDate, ended, slotStatus, limitText, josa, overlap, conflict, check, byTime, newId };
+           closeHour, dayHours, gridHours, roomById, lastDate, ended, slotStatus, limitText, josa, overlap, conflict, check, byTime, groups, runs, newId, COLORS };
 })();
 if (typeof module !== 'undefined') module.exports = Core;

@@ -56,15 +56,17 @@ class GitHubStore {
     return new StoreError('error', '저장소 오류가 생겼습니다. (' + s + ')', s);
   }
 
-  /* 파일 읽기. 없으면 data = null. 바뀌지 않았으면 가지고 있던 것을 그대로 돌려준다. */
-  async get(path) {
+  /* 파일 읽기. 없으면 data = null. 바뀌지 않았으면 가지고 있던 것을 그대로 돌려준다.
+     sure = true면 반드시 서버에 물어본다(저장 직전). 아니면 '없는 파일'은 3분 동안 다시 묻지 않는다(자동 새로 고침의 요청 수를 줄이려고). */
+  async get(path, sure) {
     const c = this.cache.get(path);
+    if (!sure && c && !c.data && c.checkedAt && Date.now() - c.checkedAt < 180000) return c;
     const res = await this.req('GET', path, null, c && c.etag);
     if (res.status === 304 && c) return c;
     const fresh = c && c.wroteAt && Date.now() - c.wroteAt < 15000;   // 방금 내가 쓴 파일
     if (res.status === 404) {
       if (fresh && c.data) return c;                                   // 쓰자마자 '없음'이 오면 늦게 온 응답으로 본다
-      const v = { data: null, sha: null, etag: null };
+      const v = { data: null, sha: null, etag: null, checkedAt: Date.now() };
       this.cache.set(path, v); return v;
     }
     if (!res.ok) throw await this.fail(res);
@@ -97,7 +99,7 @@ class GitHubStore {
      fn(현재 내용 또는 null) → 새 내용. undefined를 돌려주면 저장하지 않는다. 규칙에 어긋나면 fn이 오류를 던진다. */
   async mutate(path, fn, message) {
     for (let i = 0; i < 6; i++) {
-      const cur = await this.get(path);
+      const cur = await this.get(path, true);
       const next = fn(cur.data ? JSON.parse(JSON.stringify(cur.data)) : null);
       if (next === undefined) return cur;
       next.rev = ((cur.data && cur.data.rev) || 0) + 1;
@@ -121,11 +123,12 @@ const Data = {
   path: ym => 'bookings/' + ym + '.json',
   items: v => (v && v.data && Array.isArray(v.data.items) ? v.data.items : []),
   group(list) { const m = new Map(); list.forEach(b => { const ym = Core.ymOf(b.date); if (!m.has(ym)) m.set(ym, []); m.get(ym).push(b); }); return m; },
+  /* 저장 기록에 남길 말: 이어진 예약은 한 구간으로 적는다 */
   describe(list) {
-    const b = list[0]; if (!b) return '';
-    const room = Core.roomById(this.settings, b.room);
-    const one = (+b.date.slice(5, 7)) + '/' + (+b.date.slice(8)) + '(' + '일월화수목금토'[Core.weekday(b.date)] + ') ' + b.start + '~' + b.end + '시 ' + (room ? room.name : b.room);
-    return list.length > 1 ? list.length + '건 (' + one + ' 등)' : one;
+    if (!list.length) return '';
+    const one = b => { const room = Core.roomById(this.settings, b.room); return (+b.date.slice(5, 7)) + '/' + (+b.date.slice(8)) + '(' + '일월화수목금토'[Core.weekday(b.date)] + ') ' + b.start + '~' + b.end + '시 ' + (room ? room.name : b.room); };
+    const gs = Core.groups(list.map(b => Object.assign({}, b, { owner: '', purpose: '' })));
+    return gs.length > 1 ? list.length + '건 (' + one(gs[0]) + ' 등)' : one(gs[0]);
   },
 
   async loadSettings() {
@@ -142,7 +145,7 @@ const Data = {
     return this.settings;
   },
 
-  async month(ym) { return this.items(await this.store.get(this.path(ym))); },
+  async month(ym, sure) { return this.items(await this.store.get(this.path(ym), sure)); },
   /* 이미 읽어 둔 내용 (없으면 null) — 저장 직후 화면에 바로 반영할 때 쓴다 */
   cached(ym) { const v = this.store && this.store.cache.get(this.path(ym)); return v ? this.items(v) : null; },
   sha(path) { const v = this.store && this.store.cache.get(path); return v ? (v.sha || '-') + ':' + ((v.data && v.data.rev) || 0) : ''; },
@@ -199,6 +202,35 @@ const Data = {
       n += gone.length;
     }
     return n;
+  },
+
+  /* 예약 묶음 바꾸기: olds를 지우고 news를 넣는다. 규칙에 걸리면 아무것도 바꾸지 않는다.
+     시간·방 바꾸기(verb '변경')와 일부 시간만 취소(verb '취소', 남길 부분을 news로)에 쓴다.
+     keep = true면 news는 원래 있던 시간의 일부이므로 지난 시간·기간 제한을 보지 않는다. */
+  async replace(olds, news, who, verb, keep) {
+    const rule = why => new StoreError('rule', why);
+    const gone = () => new StoreError('gone', '이미 취소되었거나 바뀐 예약입니다.');
+    const ids = new Set(olds.map(b => b.id));
+    const msg = () => verb + ' ' + this.describe(olds) + (news.length ? ' → ' + this.describe(news) : '') + ' · ' + who;
+    const yms = Array.from(new Set(olds.concat(news).map(b => Core.ymOf(b.date))));
+    if (yms.length === 1) {
+      await this.store.mutate(this.path(yms[0]), cur => {
+        const items = cur && Array.isArray(cur.items) ? cur.items : [];
+        if (olds.some(b => !items.some(x => x.id === b.id))) throw gone();
+        const rest = items.filter(x => !ids.has(x.id)), now = Core.nowKST();
+        news.forEach(b => { const why = Core.check(this.settings, rest, b, now, null, !!keep); if (why) throw rule(why); rest.push(b); });
+        rest.sort(Core.byTime);
+        const doc = cur || { v: 1 };
+        doc.items = rest;
+        return doc;
+      }, msg);
+      return;
+    }
+    // 다른 달로 옮기는 경우: 먼저 새 예약을 넣고, 들어간 뒤에 예전 것을 지운다
+    for (const [ym, list] of this.group(olds)) { const cur = await this.month(ym); if (list.some(b => !cur.some(x => x.id === b.id))) throw gone(); }
+    const r = await this.add(news, who, keep);
+    if (r.skipped.length) { if (r.added.length) await this.cancel(r.added, who); throw rule(r.skipped[0].why); }
+    await this.cancel(olds, who);
   },
 
   /* 예약 바꾸기 (날짜·시간·방·용도). next는 같은 id를 가진 새 내용 */
